@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import puppeteer from "puppeteer";
+import puppeteer, { Viewport } from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
+
 import { ExtractedResult, Match } from "@/lib/types";
 
+const chromiumWithProps = chromium as typeof chromium & {
+  headless: boolean;
+  defaultViewport: Viewport | null;
+};
 
 async function extractContentWithPuppeteer(
   url: string,
   query?: string
 ): Promise<ExtractedResult> {
-  const browser = await puppeteer.launch();
+  
+  const browser = await puppeteer.launch({
+    args: chromiumWithProps.args,
+    executablePath: await chromiumWithProps.executablePath(),
+    headless: chromiumWithProps.headless,
+    defaultViewport: chromiumWithProps.defaultViewport,
+  });
+
   const page = await browser.newPage();
 
   try {
@@ -116,7 +129,6 @@ async function extractContentWithPuppeteer(
       scripts,
       schemaMarkup,
       matches,
-     
     };
   } catch (error) {
     console.error(` Error scraping ${url}:`, error);

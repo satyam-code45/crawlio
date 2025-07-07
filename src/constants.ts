@@ -1,0 +1,1 @@
+export const REMOTE_EXCETUABLE_PATH = "https://github.com/Sparticuz/chromium/releases/download/v121.0.0/chromium-v121.0.0-pack.tar"

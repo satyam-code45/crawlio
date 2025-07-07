@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import puppeteer from "puppeteer";
+import puppeteer, { Viewport } from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import { ExtractedResult, Match } from "@/lib/types";
+
+const chromiumWithProps = chromium as typeof chromium & {
+  headless: boolean;
+  defaultViewport: Viewport | null;
+};
 
 // Extract content from a Puppeteer page
 async function extractContentWithPuppeteer(
   url: string,
   query?: string
 ): Promise<ExtractedResult> {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    args: chromiumWithProps.args,
+    executablePath: await chromiumWithProps.executablePath(),
+    headless: chromiumWithProps.headless,
+    defaultViewport: chromiumWithProps.defaultViewport,
+  });
 
   const page = await browser.newPage();
 
@@ -16,22 +27,22 @@ async function extractContentWithPuppeteer(
 
     const title = await page.title();
 
-    const metaDescription = await page.$eval(
-      'meta[name="description"]',
-      el => el.getAttribute("content") || ""
-    ).catch(() => "");
+    const metaDescription = await page
+      .$eval(
+        'meta[name="description"]',
+        (el) => el.getAttribute("content") || ""
+      )
+      .catch(() => "");
 
-    const metaKeywords = await page.$eval(
-      'meta[name="keywords"]',
-      el => el.getAttribute("content") || ""
-    ).catch(() => "");
+    const metaKeywords = await page
+      .$eval('meta[name="keywords"]', (el) => el.getAttribute("content") || "")
+      .catch(() => "");
 
-    const headings = await page.$$eval(
-      "h1, h2, h3, h4, h5, h6",
-      els => els.map(el => el.textContent?.trim() || "")
+    const headings = await page.$$eval("h1, h2, h3, h4, h5, h6", (els) =>
+      els.map((el) => el.textContent?.trim() || "")
     );
 
-    const contactInfo = await page.$$eval("a", els => {
+    const contactInfo = await page.$$eval("a", (els) => {
       const email: string[] = [];
       const phone: string[] = [];
 
@@ -45,16 +56,22 @@ async function extractContentWithPuppeteer(
       return { email, phone };
     });
 
-    const images = await page.$$eval("img", els =>
-      els.map(el => el.getAttribute("src")).filter(Boolean) as string[]
+    const images = await page.$$eval(
+      "img",
+      (els) =>
+        els.map((el) => el.getAttribute("src")).filter(Boolean) as string[]
     );
 
-    const scripts = await page.$$eval("script", els =>
-      els.map(el => el.getAttribute("src")).filter(Boolean) as string[]
+    const scripts = await page.$$eval(
+      "script",
+      (els) =>
+        els.map((el) => el.getAttribute("src")).filter(Boolean) as string[]
     );
 
-    const schemaMarkup = await page.$$eval("[itemscope][itemtype]", els =>
-      els.map(el => el.getAttribute("itemtype")).filter(Boolean) as string[]
+    const schemaMarkup = await page.$$eval(
+      "[itemscope][itemtype]",
+      (els) =>
+        els.map((el) => el.getAttribute("itemtype")).filter(Boolean) as string[]
     );
 
     const matches: Match[] = [];
@@ -62,8 +79,8 @@ async function extractContentWithPuppeteer(
     if (query) {
       const keyword = query.toLowerCase();
 
-      const textSnippets = await page.$$eval("p, li, span", els =>
-        els.map(el => el.textContent?.trim() || "")
+      const textSnippets = await page.$$eval("p, li, span", (els) =>
+        els.map((el) => el.textContent?.trim() || "")
       );
 
       for (const snippet of textSnippets) {
@@ -118,7 +135,7 @@ export async function POST(req: NextRequest) {
   }
 
   const results = await Promise.all(
-    urls.map(url => extractContentWithPuppeteer(url, query))
+    urls.map((url) => extractContentWithPuppeteer(url, query))
   );
 
   return NextResponse.json(results);
