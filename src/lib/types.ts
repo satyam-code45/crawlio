@@ -18,6 +18,7 @@ export interface ExtractedResult {
   images: string[];
   scripts: string[];
   schemaMarkup: string[];
-  matches: Match[]; 
+  matches: Match[];
   error?: boolean;
+  techStack?: string[];
 }

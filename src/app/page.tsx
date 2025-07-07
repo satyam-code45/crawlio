@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { saveAs } from "file-saver";
 import { ExtractedResult } from "@/lib/types";
 
@@ -23,23 +23,35 @@ type FormData = z.infer<typeof scraperSchema>;
 export default function Page() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ExtractedResult[]>([]);
+  const [endpoint, setEndpoint] = useState("");
 
   const form = useForm<FormData>({
     resolver: zodResolver(scraperSchema),
     defaultValues: {
       query: "",
-      seedUrls: "",
+      seedUrls:"",
     },
   });
 
+  useEffect(() => {
+  form.setValue(
+    "seedUrls",
+    endpoint === "/api/workwave" ? "https://workwave-phi.vercel.app/" : ""
+  );
+}, [endpoint,form]);
+
+
   const onSubmit = async (values: FormData) => {
-    const urls = values.seedUrls
-      ? values.seedUrls.split(",").map((url) => url.trim())
-      : [];
+    const urls =
+      endpoint === "/api/workwave"
+        ? ["https://workwave-phi.vercel.app/"]
+        : values.seedUrls
+        ? values.seedUrls.split(",").map((url) => url.trim())
+        : [];
 
     setLoading(true);
     try {
-      const res = await axios.post("/api/cheerioscrap", {
+      const res = await axios.post(endpoint, {
         query: values.query,
         urls,
       });
@@ -61,16 +73,42 @@ export default function Page() {
       });
       saveAs(blob, "scraped_results.json");
     } else {
-      const csvRows: string[] = ["URL,Title,Meta Description,Emails,Phones"];
+      const csvRows: string[] = [
+        [
+          "URL",
+          "Title",
+          "Meta Description",
+          "Meta Keywords",
+          "Headings",
+          "Emails",
+          "Phones",
+          "Images",
+          "Scripts",
+          "Schema Markup",
+          "Keyword Matches",
+        ].join(","),
+      ];
+
       results.forEach((result) => {
         csvRows.push(
-          `"${result.url}","${result.title || ""}","${
-            result.meta.description || ""
-          }","${result.contactInfo.email.join(
-            " | "
-          )}","${result.contactInfo.phone.join(" | ")}"`
+          [
+            result.url,
+            result.title || "",
+            result.meta.description || "",
+            result.meta.keywords || "",
+            result.headings.join(" | "),
+            result.contactInfo.email.join(" | "),
+            result.contactInfo.phone.join(" | "),
+            result.images.join(" | "),
+            result.scripts.join(" | "),
+            result.schemaMarkup.join(" | "),
+            result.matches.map((m) => m.text).join(" | "),
+          ]
+            .map((val) => `"${val}"`)
+            .join(",")
         );
       });
+
       const blob = new Blob([csvRows.join("\n")], {
         type: "text/csv;charset=utf-8",
       });
@@ -80,6 +118,29 @@ export default function Page() {
 
   return (
     <div className="max-w-2xl mx-auto py-10">
+      {/* Scraper Switch Buttons */}
+      <div className="flex gap-2 mb-4">
+        <Button
+          variant={endpoint === "/api/cheerioscrap" ? "default" : "outline"}
+          onClick={() => setEndpoint("/api/cheerioscrap")}
+        >
+          Scrape with Cheerio
+        </Button>
+        <Button
+          variant={endpoint === "/api/puppeteer" ? "default" : "outline"}
+          onClick={() => setEndpoint("/api/puppeteer")}
+        >
+          Scrape with Puppeteer
+        </Button>
+        <Button
+          variant={endpoint === "/api/workwave" ? "default" : "outline"}
+          onClick={() => setEndpoint("/api/workwave")}
+        >
+          Scrape WorkWave (Paginated)
+        </Button>
+      </div>
+
+      {/* Scraper Form */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
@@ -109,6 +170,7 @@ export default function Page() {
                   <Input
                     placeholder="Enter comma-separated URLs"
                     {...field}
+                    disabled={endpoint === "/api/workwave"}
                   />
                 </FormControl>
                 <FormMessage />
@@ -126,6 +188,7 @@ export default function Page() {
         </form>
       </Form>
 
+      {/* Download Buttons */}
       {results.length > 0 && (
         <div className="flex gap-4 mt-6">
           <Button variant="outline" onClick={() => handleDownload("json")}>
@@ -137,7 +200,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* Results */}
+      {/* Results Display */}
       <div className="mt-10 space-y-8">
         {results.length > 0
           ? results.map((result, idx) => (
@@ -196,6 +259,13 @@ export default function Page() {
                   <p className="text-sm text-gray-300 mb-1">
                     <strong>Schema Markup:</strong>{" "}
                     {result.schemaMarkup.join(", ")}
+                  </p>
+                )}
+
+                {result.matches.length > 0 && (
+                  <p className="text-sm text-gray-300 mb-1">
+                    <strong>Matches:</strong>{" "}
+                    {result.matches.map((m) => m.text).join(", ")}
                   </p>
                 )}
               </div>
