@@ -2,6 +2,10 @@
 
 A powerful, flexible web scraping tool that extracts structured data from websites using both static and JavaScript-rendered strategies. Built with Next.js, Puppeteer, Cheerio, and TailwindCSS — it supports keyword-based search, multi-page crawling, and outputs in both JSON and CSV formats.
 
+
+https://github.com/user-attachments/assets/741a2036-34d9-4e48-94a2-821a7ed63991
+
+
 ![image](https://github.com/user-attachments/assets/2ed94886-eaef-49d8-8ec4-5cc56620662f)
 
 
